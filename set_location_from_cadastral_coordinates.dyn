@@ -1,0 +1,566 @@
+{
+  "Uuid": "2d26c30f-8e80-4fc0-a50c-1802a4da5097",
+  "IsCustomNode": false,
+  "Description": "",
+  "Name": "2025_03_05_set_location_from_cadastral_coordinates",
+  "ElementResolver": {
+    "ResolutionMap": {}
+  },
+  "Inputs": [
+    {
+      "Id": "8d117b3feb7540fc9ba7752254c7dd70",
+      "Name": "Cadastre_X",
+      "Type": "string",
+      "Type2": "string",
+      "Value": "1652000",
+      "Description": "Creates a string",
+      "SelectedIndex": 0
+    },
+    {
+      "Id": "d3a33189f29a47ea94f08d565df6384c",
+      "Name": "Cadastre_Y",
+      "Type": "string",
+      "Type2": "string",
+      "Value": "8183100",
+      "Description": "Creates a string",
+      "SelectedIndex": 0
+    },
+    {
+      "Id": "3c5058cb71c24d049c2e37469e1b583f",
+      "Name": "Coordonées en projection",
+      "Type": "selection",
+      "Type2": "dropdownSelection",
+      "Value": "RGF93CC49",
+      "Description": "A dropdown menu with customizable values.",
+      "SelectedIndex": 1
+    }
+  ],
+  "Outputs": [
+    {
+      "Id": "c72c3eb8d8234364886a9acf5df57c7c",
+      "Name": "Watch",
+      "Type": "string",
+      "InitialValue": "Site location updated: Lat 48.846160595277404, Lon 2.345959711996224",
+      "Description": "Visualizes a node's output"
+    }
+  ],
+  "Nodes": [
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "#######################################################################\r\n### Import Libraries\r\n#######################################################################\r\nimport sys\r\nsys.path.append(r\"E:\\TM_2022_12_14\\Python\\2025_01_24_Python_391_Dynamo_Libraries\\venv\\Lib\\site-packages\")\r\nfrom pyproj import Transformer\r\n\r\n#######################################################################\r\n### Inputs\r\n#######################################################################\r\nprojection_zone = IN[0]\r\ncadastre_X = IN[1]\r\ncadastre_Y = IN[2]\r\n\r\n#######################################################################\r\n#### Create transformer from CC_Lambert zone to WGS\r\n#######################################################################\r\ncrs = (\"EPSG:98\" + (projection_zone))\r\ntransformer = Transformer.from_crs(crs, \"EPSG:4326\", always_xy=True)\r\n\r\n#######################################################################\r\n###  Transform CC_Lambert to WGS\r\n#######################################################################\r\nWGS = transformer.transform(cadastre_X, cadastre_Y)\r\nWGS_lat = float(WGS[0])\r\nWGS_lon = float(WGS[1])\r\n\r\n#######################################################################\r\n### Output\r\n#######################################################################\r\nOUT = [WGS_lat, WGS_lon]",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "7ba2df7b54a9473cb0b045343f3e9c4c",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "89f214d2ac23431bb69cd95421987484",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "d39d1c750fd246428be8fbf68dc27c13",
+          "Name": "IN[1]",
+          "Description": "Input #1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "0c752d031ba6474f88d73f3898e422b4",
+          "Name": "IN[2]",
+          "Description": "Input #2",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "06fb573073e649a6b6cee0ab419ea045",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import clr\r\nimport math\r\nclr.AddReference('RevitServices')\r\nfrom RevitServices.Persistence import DocumentManager\r\nfrom RevitServices.Transactions import TransactionManager\r\n\r\nclr.AddReference('RevitAPI')\r\nfrom Autodesk.Revit.DB import ProjectLocation, SiteLocation\r\n\r\n\r\n# Get the current document\r\ndoc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n# Get the project location (usually there is only one)\r\nproj_location = doc.ActiveProjectLocation  # Retrieves the active project location\r\n\r\n# Get the SiteLocation object\r\nsite_location = proj_location.GetSiteLocation()\r\n\r\n# Define the new Latitude and Longitude values\r\nnew_latitude_deg = IN[0]  # Input from Dynamo node (e.g., 40.7128 for NYC)\r\nnew_latitude_rad = math.radians(new_latitude_deg)\r\nnew_longitude_deg = IN[1]  # Input from Dynamo node (e.g., -74.0060 for NYC)\r\nnew_longitude_rad = math.radians(new_longitude_deg)\r\n\r\n# Start transaction to modify the document\r\nTransactionManager.Instance.EnsureInTransaction(doc)\r\n\r\n# Update the SiteLocation values\r\nsite_location.Latitude = new_latitude_rad\r\nsite_location.Longitude = new_longitude_rad\r\n\r\n# Commit the changes\r\nTransactionManager.Instance.TransactionTaskDone()\r\n\r\n# Output the updated values\r\nOUT = f\"Site location updated: Lat {math.degrees(site_location.Latitude)}, Lon {math.degrees(site_location.Longitude)}\"\r\n# OUT = [site_location]",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "2b7ae094617548b9a6a482cdc9154540",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "fa5b25712d5748fb9881666fb0579a1a",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "3a98589c972c42a89fc55d20ca370442",
+          "Name": "IN[1]",
+          "Description": "Input #1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "c722bfd4abca4c40804354c0a13c9a5d",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "Id": "00801c252c49429eae96e9aff0cdfeec",
+      "NodeType": "CodeBlockNode",
+      "Inputs": [
+        {
+          "Id": "6ccd992ac20e4d2096c05cfcf5ad7ad9",
+          "Name": "WGS",
+          "Description": "WGS",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "3a1d66cbaf524824a8928edd79c41767",
+          "Name": "",
+          "Description": "Value of expression at line 1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Allows for DesignScript code to be authored directly",
+      "Code": "WGS[1];"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "Id": "e7a9aae9d5e446e3b297cbf6b74e92c2",
+      "NodeType": "CodeBlockNode",
+      "Inputs": [
+        {
+          "Id": "e141592b817e494a844e6e4bccc5a79f",
+          "Name": "WGS",
+          "Description": "WGS",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "074d61e44a2d412cb1cc2bd6e70d527c",
+          "Name": "",
+          "Description": "Value of expression at line 1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Allows for DesignScript code to be authored directly",
+      "Code": "WGS[0];"
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Watch, CoreNodeModels",
+      "WatchWidth": 420.0,
+      "WatchHeight": 38.0,
+      "Id": "c72c3eb8d8234364886a9acf5df57c7c",
+      "NodeType": "ExtensionNode",
+      "Inputs": [
+        {
+          "Id": "49d2b33a0ea94f978ba5c4d7957bcf2c",
+          "Name": "",
+          "Description": "Node to show output from",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "13e80ee3f4c740d0998f24310a0277fb",
+          "Name": "",
+          "Description": "Node output",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Visualizes a node's output"
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.StringInput, CoreNodeModels",
+      "Id": "8d117b3feb7540fc9ba7752254c7dd70",
+      "NodeType": "StringInputNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "5c4298cc50824923a1dd98c0350b1f62",
+          "Name": "",
+          "Description": "String",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Creates a string",
+      "InputValue": "1652000"
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.StringInput, CoreNodeModels",
+      "Id": "d3a33189f29a47ea94f08d565df6384c",
+      "NodeType": "StringInputNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "f3e8751a4ce24683a86090f48e553d65",
+          "Name": "",
+          "Description": "String",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Creates a string",
+      "InputValue": "8183100"
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.CustomSelection, CoreNodeModels",
+      "SerializedItems": [
+        {
+          "Name": "RGF93CC50",
+          "Item": "50"
+        },
+        {
+          "Name": "RGF93CC49",
+          "Item": "49"
+        },
+        {
+          "Name": "RGF93CC48",
+          "Item": "48"
+        },
+        {
+          "Name": "RGF93CC47",
+          "Item": "47"
+        },
+        {
+          "Name": "RGF93CC46",
+          "Item": "46"
+        },
+        {
+          "Name": "RGF93CC45",
+          "Item": "45"
+        },
+        {
+          "Name": "RGF93CC44",
+          "Item": "44"
+        },
+        {
+          "Name": "RGF93CC43",
+          "Item": "43"
+        },
+        {
+          "Name": "RGF93CC42",
+          "Item": "42"
+        },
+        {
+          "Name": "Please select projection zone",
+          "Item": "00"
+        }
+      ],
+      "SelectedIndex": 1,
+      "SelectedString": "RGF93CC49",
+      "Id": "3c5058cb71c24d049c2e37469e1b583f",
+      "NodeType": "ExtensionNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "fb33aed59b9e4a53aebcdb8b3bc7659e",
+          "Name": "value",
+          "Description": "Selected value",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "A dropdown menu with customizable values."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.FromObject, CoreNodeModels",
+      "Id": "af66382082da4290a9190f250f40d831",
+      "NodeType": "ExtensionNode",
+      "Inputs": [
+        {
+          "Id": "8fa9f15b418d4d92a95a97edc09f8512",
+          "Name": "object",
+          "Description": "Object to be serialized",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "deb33076c31d4fac89a84613954f83cd",
+          "Name": "string",
+          "Description": "String representation of the object",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Converts an object to a string representation"
+    }
+  ],
+  "Connectors": [
+    {
+      "Start": "06fb573073e649a6b6cee0ab419ea045",
+      "End": "6ccd992ac20e4d2096c05cfcf5ad7ad9",
+      "Id": "35c239dfd3964104ab4e19300c1c5832",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "06fb573073e649a6b6cee0ab419ea045",
+      "End": "e141592b817e494a844e6e4bccc5a79f",
+      "Id": "7fa7782f29a74171a80527c9e7f4d3cb",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "c722bfd4abca4c40804354c0a13c9a5d",
+      "End": "49d2b33a0ea94f978ba5c4d7957bcf2c",
+      "Id": "3a4d9e23b6f54a768107284d0195a6a7",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "3a1d66cbaf524824a8928edd79c41767",
+      "End": "fa5b25712d5748fb9881666fb0579a1a",
+      "Id": "e1c17008ef9d4cb5b1ea1977d7e8630b",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "074d61e44a2d412cb1cc2bd6e70d527c",
+      "End": "3a98589c972c42a89fc55d20ca370442",
+      "Id": "2b8c484bb4c94b82b4cc4255164d96f5",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "5c4298cc50824923a1dd98c0350b1f62",
+      "End": "d39d1c750fd246428be8fbf68dc27c13",
+      "Id": "b8bb5bff87bc4418a779a00d423670e2",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "f3e8751a4ce24683a86090f48e553d65",
+      "End": "0c752d031ba6474f88d73f3898e422b4",
+      "Id": "ab8688aff0e94d86b9a9e9d8ad79991e",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "fb33aed59b9e4a53aebcdb8b3bc7659e",
+      "End": "8fa9f15b418d4d92a95a97edc09f8512",
+      "Id": "ef9ac4b228ea4c1eae4e39469b3ee8a6",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "deb33076c31d4fac89a84613954f83cd",
+      "End": "89f214d2ac23431bb69cd95421987484",
+      "Id": "b851a6086775417e99304e4508eb279f",
+      "IsHidden": "False"
+    }
+  ],
+  "Dependencies": [],
+  "NodeLibraryDependencies": [],
+  "Thumbnail": "",
+  "GraphDocumentationURL": null,
+  "ExtensionWorkspaceData": [
+    {
+      "ExtensionGuid": "28992e1d-abb9-417f-8b1b-05e053bee670",
+      "Name": "Properties",
+      "Version": "2.19",
+      "Data": {}
+    },
+    {
+      "ExtensionGuid": "DFBD9CC0-DB40-457A-939E-8C8555555A9D",
+      "Name": "Generative Design",
+      "Version": "6.1",
+      "Data": {}
+    }
+  ],
+  "Author": "",
+  "Linting": {
+    "activeLinter": "None",
+    "activeLinterId": "7b75fb44-43fd-4631-a878-29f4d5d8399a",
+    "warningCount": 0,
+    "errorCount": 0
+  },
+  "Bindings": [],
+  "View": {
+    "Dynamo": {
+      "ScaleFactor": 1.0,
+      "HasRunWithoutCrash": true,
+      "IsVisibleInDynamoLibrary": true,
+      "Version": "2.19.3.6394",
+      "RunType": "Manual",
+      "RunPeriod": "1000"
+    },
+    "Camera": {
+      "Name": "_Background Preview",
+      "EyeX": -17.0,
+      "EyeY": 24.0,
+      "EyeZ": 50.0,
+      "LookX": 12.0,
+      "LookY": -13.0,
+      "LookZ": -58.0,
+      "UpX": 0.0,
+      "UpY": 1.0,
+      "UpZ": 0.0
+    },
+    "ConnectorPins": [],
+    "NodeViews": [
+      {
+        "Id": "7ba2df7b54a9473cb0b045343f3e9c4c",
+        "Name": "TM_PS_CC_Lambert_to_WGS",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 885.55846455510675,
+        "Y": 180.71296397532791
+      },
+      {
+        "Id": "2b7ae094617548b9a6a482cdc9154540",
+        "Name": "TM_PS_Set_Project_Location",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 1574.3026678490455,
+        "Y": 179.29739917282134
+      },
+      {
+        "Id": "00801c252c49429eae96e9aff0cdfeec",
+        "Name": "WGS_lat",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 1293.8235108759297,
+        "Y": 182.82286497664344
+      },
+      {
+        "Id": "e7a9aae9d5e446e3b297cbf6b74e92c2",
+        "Name": "WGS_lon",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 1293.6390242424886,
+        "Y": 319.37729695992186
+      },
+      {
+        "Id": "c72c3eb8d8234364886a9acf5df57c7c",
+        "Name": "Watch",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": true,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 1943.7289470913308,
+        "Y": 180.13144899754477
+      },
+      {
+        "Id": "8d117b3feb7540fc9ba7752254c7dd70",
+        "Name": "Cadastre_X",
+        "IsSetAsInput": true,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 566.658486913933,
+        "Y": 320.59733403153979
+      },
+      {
+        "Id": "d3a33189f29a47ea94f08d565df6384c",
+        "Name": "Cadastre_Y",
+        "IsSetAsInput": true,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 569.45524609547931,
+        "Y": 451.77072589106996
+      },
+      {
+        "Id": "3c5058cb71c24d049c2e37469e1b583f",
+        "Name": "Coordonées en projection",
+        "IsSetAsInput": true,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 120.02433184236298,
+        "Y": 180.2680271262399
+      },
+      {
+        "Id": "af66382082da4290a9190f250f40d831",
+        "Name": "String from Object",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 564.8518678801081,
+        "Y": 183.00450303235218
+      }
+    ],
+    "Annotations": [],
+    "X": -43.887883651761371,
+    "Y": 43.814094370732448,
+    "Zoom": 1.1480533167211238
+  }
+}
